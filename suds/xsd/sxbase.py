@@ -19,8 +19,6 @@ The I{sxbase} module provides I{base} classes that represent
 schema objects.
 """
 
-from logging import getLogger
-from suds import *
 from suds.xsd import *
 from suds.sax.element import Element
 from suds.sax import Namespace
@@ -92,8 +90,9 @@ class SchemaObject(object):
         self.schema = schema
         self.root = root
         self.id = objid(self)
+        self.ns = schema.tns
         self.name = root.get('name')
-        self.qname = (self.name, schema.tns[1])
+        self.qname = (self.name, self.ns[1])
         self.min = root.get('minOccurs')
         self.max = root.get('maxOccurs')
         self.type = root.get('type')
@@ -166,7 +165,7 @@ class SchemaObject(object):
         @return: The schema's target namespace
         @rtype: (I{prefix},I{URI})
         """
-        ns = self.schema.tns
+        ns = self.ns
         if ns[0] is None:
             ns = (prefix, ns[1])
         return ns
@@ -206,8 +205,7 @@ class SchemaObject(object):
         @rtype: boolean
         """
         return ( not self.optional() )
-        
-    
+
     def resolve(self, nobuiltin=False):
         """
         Resolve and return the nodes true self.
@@ -343,8 +341,8 @@ class SchemaObject(object):
     
     def dependencies(self):
         """
-        Get a list of dependancies for dereferencing.
-        @return: A merge dependancy index and a list of dependancies.
+        Get a list of dependencies for de-referencing.
+        @return: A merge dependency index and a list of dependencies.
         @rtype: (int, [L{SchemaObject},...])
         """
         return (None, [])
@@ -353,7 +351,7 @@ class SchemaObject(object):
         """
         The list of I{auto} qualified attribute values.
         Qualification means to convert values into I{qref}.
-        @return: A list of attibute names.
+        @return: A list of attribute names.
         @rtype: list
         """
         return ['type', 'ref']
@@ -384,7 +382,8 @@ class SchemaObject(object):
         Merge another object as needed.
         """
         other.qualify()
-        for n in ('name',
+        for n in ('ns',
+                  'name',
                   'qname',
                   'min',
                   'max',
@@ -392,14 +391,11 @@ class SchemaObject(object):
                   'type',
                   'nillable',
                   'form_qualified',):
-            if getattr(self, n) is not None:
-                continue
             v = getattr(other, n)
             if v is None:
                 continue
             setattr(self, n, v)
-            
-            
+
     def content(self, collection=None, filter=Filter(), history=None):
         """
         Get a I{flattened} list of this nodes contents.
