@@ -20,7 +20,7 @@ Contains basic caching classes.
 
 import os
 import suds
-from tempfile import gettempdir as tmp
+import errno
 from suds.transport import *
 from suds.sax.parser import Parser
 from suds.sax.element import Element
@@ -137,9 +137,7 @@ class FileCache(Cache):
             The duration may be: (months|weeks|days|hours|minutes|seconds).
         @type duration: {unit:value}
         """
-        if location is None:
-            location = os.path.join(tmp(), 'suds')
-        self.location = location
+        self.location = location or os.path.expanduser('~/.suds/cache')
         self.duration = (None, 0)
         self.setduration(**duration)
         self.checkversion()
@@ -176,15 +174,16 @@ class FileCache(Cache):
         """
         self.location = location
             
-    def mktmp(self):
+    def mkdir(self):
         """
         Make the I{location} directory if it doesn't already exits.
         """
         try:
-            if not os.path.isdir(self.location):
-                os.makedirs(self.location)
-        except:
-            log.debug(self.location, exc_info=1)
+            os.makedirs(self.location)
+            os.chmod(self.location, 0700)
+        except OSError, e:
+            if e.errno != errno.EEXIST:
+                raise
         return self
     
     def put(self, id, bfr):
@@ -262,13 +261,12 @@ class FileCache(Cache):
         """
         Open the cache file making sure the directory is created.
         """
-        self.mktmp()
+        self.mkdir()
         return open(fn, *args)
     
     def checkversion(self):
         path = os.path.join(self.location, 'version')
         try:
-            
             f = self.open(path)
             version = f.read()
             f.close()
